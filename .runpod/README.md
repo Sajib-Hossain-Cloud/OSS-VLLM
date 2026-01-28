@@ -4,7 +4,7 @@ Run LLMs using [vLLM](https://docs.vllm.ai) with an OpenAI-compatible API
 
 ---
 
-[![RunPod](https://api.runpod.io/badge/runpod-workers/worker-vllm)](https://www.runpod.io/console/hub/runpod-workers/worker-vllm)
+[![RunPod](https://api.runpod.io/badge/Sajib-Hossain-Cloud/OSS-VLLM)](https://www.runpod.io/console/hub/Sajib-Hossain-Cloud/OSS-VLLM)
 
 ---
 
@@ -17,7 +17,7 @@ All behaviour is controlled through environment variables:
 | `MODEL_NAME`                        | Path of the model weights                         | "facebook/opt-125m" | Local folder or Hugging Face repo ID                               |
 | `HF_TOKEN`                          | HuggingFace access token for gated/private models |                     | Your HuggingFace access token                                      |
 | `MAX_MODEL_LEN`                     | Model's maximum context length                    |                     | Integer (e.g., 4096)                                               |
-| `QUANTIZATION`                      | Quantization method                               |                     | "awq", "gptq", "squeezellm", "bitsandbytes"                        |
+| `QUANTIZATION`                      | Quantization method                               |                     | "awq", "gptq", "squeezellm", "bitsandbytes", "mxfp4"               |
 | `TENSOR_PARALLEL_SIZE`              | Number of GPUs                                    | 1                   | Integer                                                            |
 | `GPU_MEMORY_UTILIZATION`            | Fraction of GPU memory to use                     | 0.95                | Float between 0.0 and 1.0                                          |
 | `MAX_NUM_SEQS`                      | Maximum number of sequences per iteration         | 256                 | Integer                                                            |
@@ -28,7 +28,33 @@ All behaviour is controlled through environment variables:
 | `OPENAI_SERVED_MODEL_NAME_OVERRIDE` | Override served model name in API                 |                     | String                                                             |
 | `MAX_CONCURRENCY`                   | Maximum concurrent requests                       | 300                 | Integer                                                            |
 
-For complete configuration options, see the [full configuration documentation](https://github.com/runpod-workers/worker-vllm/blob/main/docs/configuration.md).
+For complete configuration options, see the [full configuration documentation](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/blob/main/docs/configuration.md).
+
+## Deploying GPT-OSS Models (gpt-oss-20b / gpt-oss-120b)
+
+OpenAI's GPT-OSS models are fully supported with optimized MXFP4 quantization:
+
+- **21B parameters (20b) / 121B parameters (120b)** with Mixture-of-Experts architecture
+- **Built-in MXFP4 quantization** - gpt-oss-20b fits in ~16GB VRAM
+- **Reasoning capabilities** with configurable effort (low/medium/high)
+- **Native tool support** (web browsing, Python execution, function calling)
+- **Apache 2.0 license** for commercial use
+
+### Quick Start: GPT-OSS-20B
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `MODEL_NAME` | `openai/gpt-oss-20b` | The model to deploy |
+| `ENABLE_AUTO_TOOL_CHOICE` | `true` | Enable automatic tool selection |
+| `TOOL_CALL_PARSER` | `openai` | Use OpenAI's tool call parser |
+| `ASYNC_SCHEDULING` | `true` | Enable async scheduling (recommended) |
+
+### Hardware Requirements
+
+| Model | Minimum VRAM | Recommended GPU |
+|-------|--------------|-----------------|
+| gpt-oss-20b | 16GB | A100, H100, H200, B200 |
+| gpt-oss-120b | 80GB+ | H100 (TP=1), or multiple GPUs with TP=2/4/8 |
 
 ## API Usage
 
@@ -256,6 +282,6 @@ Anything not recognized by worker-vllm is forwarded to vLLM's engine, so advance
 ## Documentation
 
 - **[🚀 Deployment Guide](https://docs.runpod.io/serverless/vllm/get-started)** - Step-by-step setup
-- **[📖 Configuration Reference](https://github.com/runpod-workers/worker-vllm/blob/main/docs/configuration.md)** - All environment variables
-- **[🏗️ Advanced Deployment](https://github.com/runpod-workers/worker-vllm/blob/main/docs/deployment.md)** - Custom builds and strategies
-- **[🔧 Development Guide](https://github.com/runpod-workers/worker-vllm/blob/main/docs/conventions.md)** - Architecture and patterns
+- **[📖 Configuration Reference](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/blob/main/docs/configuration.md)** - All environment variables
+- **[🏗️ Advanced Deployment](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/blob/main/docs/deployment.md)** - Custom builds and strategies
+- **[🔧 Development Guide](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/blob/main/docs/conventions.md)** - Architecture and patterns
