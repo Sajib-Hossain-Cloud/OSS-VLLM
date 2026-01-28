@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   dev:
-    runs-on: ubuntu-latest
+    runs-on: [blacksmith-8vcpu-ubuntu-2204, linux]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -33,6 +33,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: blacksmith docker layer cache
+        uses: useblacksmith/build-push-action@v1
+        with:
+          setup-only: true
 
       - name: Set environment variables
         run: |
