@@ -47,7 +47,7 @@ Deploy OpenAI-Compatible Blazing-Fast LLM Endpoints with **GPT-OSS** and **MXFP4
 
 Configure worker-vllm using environment variables:
 
-| Environment Variable                | Description                                       | Default             | Options                                                            |
+| Environment Variable                | Description                                       |  Default             | Options                                                            |
 | ----------------------------------- | ------------------------------------------------- | ------------------- | ------------------------------------------------------------------ |
 | `MODEL_NAME`                        | Path of the model weights                         | "facebook/opt-125m" | Local folder or Hugging Face repo ID                               |
 | `HF_TOKEN`                          | HuggingFace access token for gated/private models |                     | Your HuggingFace access token                                      |
