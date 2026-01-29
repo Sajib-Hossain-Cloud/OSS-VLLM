@@ -1,7 +1,7 @@
-FROM nvidia/cuda:12.4.1-base-ubuntu22.04 
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 RUN apt-get update -y \
-    && apt-get install -y python3-pip
+    && apt-get install -y python3-pip git
 
 RUN ldconfig /usr/local/cuda-12.4/compat/
 
@@ -31,7 +31,9 @@ ENV MODEL_NAME=$MODEL_NAME \
     HF_DATASETS_CACHE="${BASE_PATH}/huggingface-cache/datasets" \
     HUGGINGFACE_HUB_CACHE="${BASE_PATH}/huggingface-cache/hub" \
     HF_HOME="${BASE_PATH}/huggingface-cache/hub" \
-    HF_HUB_ENABLE_HF_TRANSFER=0 
+    HF_HUB_ENABLE_HF_TRANSFER=0 \
+    VLLM_ATTENTION_BACKEND=FLASH_ATTN \
+    VLLM_USE_V1=1 
 
 ENV PYTHONPATH="/:/vllm-workspace"
 
