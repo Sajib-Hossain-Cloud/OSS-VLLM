@@ -17,7 +17,8 @@
           "MODEL_NAME": "openai/gpt-oss-20b",
           "ENABLE_AUTO_TOOL_CHOICE": "true",
           "TOOL_CALL_PARSER": "openai",
-          "ASYNC_SCHEDULING": "true"
+          "ASYNC_SCHEDULING": "true",
+          "MAX_MODEL_LEN": "8192"
         }
       },
       {
@@ -27,7 +28,8 @@
           "ENABLE_AUTO_TOOL_CHOICE": "true",
           "TOOL_CALL_PARSER": "openai",
           "ASYNC_SCHEDULING": "true",
-          "TENSOR_PARALLEL_SIZE": "2"
+          "TENSOR_PARALLEL_SIZE": "2",
+          "MAX_MODEL_LEN": "8192"
         }
       },
       {
