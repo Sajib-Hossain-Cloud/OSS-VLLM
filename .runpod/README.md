@@ -10,7 +10,7 @@ Run LLMs using [vLLM](https://docs.vllm.ai) with an OpenAI-compatible API
 
 ## Endpoint Configuration
 
-All behaviour is controlled through environment variables:
+All behaviour is controlled through environment variable:
 
 | Environment Variable                | Description                                       | Default             | Options                                                            |
 | ----------------------------------- | ------------------------------------------------- | ------------------- | ------------------------------------------------------------------ |
