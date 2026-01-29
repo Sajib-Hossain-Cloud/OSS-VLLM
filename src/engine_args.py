@@ -190,6 +190,12 @@ def get_engine_args():
         if os.getenv('NO_ENABLE_PREFIX_CACHING', 'true').lower() == 'true':
             args["enable_prefix_caching"] = False
             logging.info("Prefix caching disabled for GPT-OSS model.")
+        # Set max_num_batched_tokens to at least max_model_len for GPT-OSS
+        max_model_len = args.get("max_model_len") or 8192
+        current_batched_tokens = args.get("max_num_batched_tokens")
+        if current_batched_tokens is None or current_batched_tokens < max_model_len:
+            args["max_num_batched_tokens"] = int(os.getenv('MAX_NUM_BATCHED_TOKENS', max_model_len))
+            logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model.")
         # Set MXFP4 environment variables for Blackwell GPUs if not already set
         if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
             # Auto-detect Blackwell GPU and enable MXFP4 optimizations
