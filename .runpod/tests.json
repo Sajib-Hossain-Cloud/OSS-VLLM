@@ -16,6 +16,7 @@
       "input": {
         "openai_route": "/v1/chat/completions",
         "openai_input": {
+          "model": "HuggingFaceTB/SmolLM2-135M-Instruct",
           "messages": [
             {
               "role": "system",
@@ -45,6 +46,7 @@
       "input": {
         "openai_route": "/v1/chat/completions",
         "openai_input": {
+          "model": "HuggingFaceTB/SmolLM2-135M-Instruct",
           "messages": [
             {
               "role": "user",
