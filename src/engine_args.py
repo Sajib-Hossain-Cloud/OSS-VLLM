@@ -173,7 +173,7 @@ def get_engine_args():
             target_batched_tokens = max_model_len_val
         
         args["max_num_batched_tokens"] = target_batched_tokens
-        logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
+        logging.info(f"From env: Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
         
         if not args.get("max_cudagraph_capture_size"):
             cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', 2048))
