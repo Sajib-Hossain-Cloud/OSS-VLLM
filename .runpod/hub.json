@@ -18,7 +18,9 @@
           "ENABLE_AUTO_TOOL_CHOICE": "true",
           "TOOL_CALL_PARSER": "openai",
           "ASYNC_SCHEDULING": "true",
-          "MAX_MODEL_LEN": "8192"
+          "MAX_MODEL_LEN": "8192",
+          "MAX_NUM_BATCHED_TOKENS": "8192",
+          "MAX_CUDAGRAPH_CAPTURE_SIZE": "2048"
         }
       },
       {
