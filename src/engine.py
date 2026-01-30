@@ -207,7 +207,6 @@ class OpenAIvLLMEngine(vLLMEngine):
 
         self.serving_models = OpenAIServingModels(
             engine_client=self.llm,
-            model_config=self.model_config,
             base_model_paths=self.base_model_paths,
             lora_modules=self.lora_adapters,
         )
@@ -218,8 +217,7 @@ class OpenAIvLLMEngine(vLLMEngine):
             chat_template = self.tokenizer.tokenizer.chat_template
         
         self.chat_engine = OpenAIServingChat(
-            engine_client=self.llm, 
-            model_config=self.model_config,
+            engine_client=self.llm,
             models=self.serving_models,
             response_role=self.response_role,
             request_logger=None,
@@ -231,8 +229,7 @@ class OpenAIvLLMEngine(vLLMEngine):
             enable_prompt_tokens_details=False
         )
         self.completion_engine = OpenAIServingCompletion(
-            engine_client=self.llm, 
-            model_config=self.model_config,
+            engine_client=self.llm,
             models=self.serving_models,
             request_logger=None,
         )
@@ -243,9 +240,10 @@ class OpenAIvLLMEngine(vLLMEngine):
                 tool_server = os.getenv('TOOL_SERVER', None)
                 self.responses_engine = OpenAIServingResponses(
                     engine_client=self.llm,
-                    model_config=self.model_config,
                     models=self.serving_models,
                     request_logger=None,
+                    chat_template=chat_template,
+                    chat_template_content_format="auto",
                     tool_server=tool_server,
                 )
                 logging.info("Responses API engine initialized successfully.")
