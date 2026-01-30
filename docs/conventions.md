@@ -60,7 +60,7 @@ RunPod Request → handler.py → JobInput → Engine Selection → vLLM Generat
 
 #### Option 1: Pre-built Images (Recommended)
 
-- **Image**: `runpod/worker-v1-vllm:<version>` (see [GitHub Releases](https://github.com/runpod-workers/worker-vllm/releases))
+- **Image**: `runpod/worker-v1-vllm:<version>` (see [GitHub Releases](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/releases))
 - **Configuration**: Entirely via environment variables
 - **Model Loading**: Downloads model at runtime from Hugging Face
 - **Use Case**: Quick deployment, model experimentation
@@ -191,7 +191,7 @@ src/
 
 - **Development**: `dev-<branch-name>` (e.g., `dev-feature-new-api`)
 - **Specific Versions**: `2.7.0`, `2.8.0` (semantic versioning without "v" prefix)
-- **Version Discovery**: Check [GitHub Releases](https://github.com/runpod-workers/worker-vllm/releases) for available versions
+- **Version Discovery**: Check [GitHub Releases](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/releases) for available versions
 
 ### 2. **Release Workflow**
 
@@ -210,7 +210,7 @@ src/
 
 - **Production**: Use specific version tags (e.g., `2.7.0`) for stability
 - **Development**: Use `dev-<branch>` for testing specific features
-- **Version Selection**: Check [GitHub Releases](https://github.com/runpod-workers/worker-vllm/releases) for available versions
+- **Version Selection**: Check [GitHub Releases](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/releases) for available versions
 - **Release Process**: Always tag from main branch: `git checkout main && git tag 2.8.0 && git push origin 2.8.0`
 
 ## Performance & Scaling Considerations

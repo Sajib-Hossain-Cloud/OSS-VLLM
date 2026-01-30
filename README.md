@@ -40,7 +40,7 @@ Deploy OpenAI-Compatible Blazing-Fast LLM Endpoints with **GPT-OSS** and **MXFP4
 
 **📦 Docker Image**: `runpod/worker-v1-vllm:<version>`
 
-- **Available Versions**: See [GitHub Releases](https://github.com/runpod-workers/worker-vllm/releases)
+- **Available Versions**: See [GitHub Releases](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/releases)
 - **CUDA Compatibility**: Requires CUDA >= 12.1
 
 ### Configuration

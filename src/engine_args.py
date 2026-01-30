@@ -183,19 +183,46 @@ def get_engine_args():
     model_name = args.get("model", "").lower()
     if "gpt-oss" in model_name:
         logging.info("Detected GPT-OSS model, applying optimizations...")
+        
         # Enable async scheduling for better performance (recommended for GPT-OSS)
         if os.getenv('ASYNC_SCHEDULING', 'true').lower() == 'true':
+            args["async_scheduling"] = True
             logging.info("Async scheduling enabled for GPT-OSS model.")
+        
         # Disable prefix caching for GPT-OSS (recommended)
         if os.getenv('NO_ENABLE_PREFIX_CACHING', 'true').lower() == 'true':
             args["enable_prefix_caching"] = False
             logging.info("Prefix caching disabled for GPT-OSS model.")
+        
+        # Set max_model_len if not specified (GPT-OSS default is 8192)
+        if not args.get("max_model_len"):
+            args["max_model_len"] = 8192
+            logging.info("Setting default max_model_len to 8192 for GPT-OSS model.")
+        
         # Set max_num_batched_tokens to at least max_model_len for GPT-OSS
-        max_model_len = args.get("max_model_len") or 8192
-        current_batched_tokens = args.get("max_num_batched_tokens")
-        if current_batched_tokens is None or current_batched_tokens < max_model_len:
-            args["max_num_batched_tokens"] = int(os.getenv('MAX_NUM_BATCHED_TOKENS', max_model_len))
-            logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model.")
+        # GPT-OSS requires max_num_batched_tokens >= max_model_len
+        max_model_len_val = args.get("max_model_len")
+        if isinstance(max_model_len_val, str):
+            max_model_len_val = int(max_model_len_val) if max_model_len_val else 8192
+        max_model_len_val = max_model_len_val or 8192
+        
+        # Get env var value, ensuring it's valid (> 0)
+        env_batched_tokens = os.getenv('MAX_NUM_BATCHED_TOKENS', '')
+        if env_batched_tokens and int(env_batched_tokens) > 0:
+            target_batched_tokens = max(int(env_batched_tokens), max_model_len_val)
+        else:
+            target_batched_tokens = max_model_len_val
+        
+        args["max_num_batched_tokens"] = target_batched_tokens
+        logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
+        
+        # Set max_cudagraph_capture_size for GPT-OSS (recommended: 2048)
+        if not args.get("max_cudagraph_capture_size"):
+            cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', 2048))
+            if cudagraph_size > 0:
+                args["max_cudagraph_capture_size"] = cudagraph_size
+                logging.info(f"Setting max_cudagraph_capture_size to {cudagraph_size} for GPT-OSS model.")
+        
         # Set MXFP4 environment variables for Blackwell GPUs if not already set
         if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
             # Auto-detect Blackwell GPU and enable MXFP4 optimizations
@@ -209,5 +236,15 @@ def get_engine_args():
                     logging.info("Blackwell GPU detected, enabling FlashInfer MXFP4+MXFP8 MoE.")
             except Exception as e:
                 logging.debug(f"Could not detect GPU compute capability: {e}")
+    
+    # Final safeguard: ensure max_num_batched_tokens is valid (>= 1) if set
+    if "max_num_batched_tokens" in args:
+        batched_tokens = args["max_num_batched_tokens"]
+        if isinstance(batched_tokens, str):
+            batched_tokens = int(batched_tokens) if batched_tokens else None
+        if batched_tokens is not None and batched_tokens < 1:
+            # Remove invalid value, let vLLM use its default
+            del args["max_num_batched_tokens"]
+            logging.warning("Removed invalid max_num_batched_tokens value (< 1)")
         
     return AsyncEngineArgs(**args)
