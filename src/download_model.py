@@ -41,31 +41,6 @@ def download(name, revision, type, cache_dir):
                     return path
     except ValueError:
         raise ValueError(f"No patterns matching {pattern_sets} found for download.")
-        
-          
-# @timer_decorator
-# def tensorize_model(model_path): TODO: Add back once tensorizer is ready
-#     from vllm.engine.arg_utils import EngineArgs
-#     from vllm.model_executor.model_loader.tensorizer import TensorizerConfig, tensorize_vllm_model
-#     from torch.cuda import device_count
-
-#     tensorizer_num_gpus = int(os.getenv("TENSORIZER_NUM_GPUS", "1"))
-#     if tensorizer_num_gpus > device_count():
-#         raise ValueError(f"TENSORIZER_NUM_GPUS ({tensorizer_num_gpus}) exceeds available GPUs ({device_count()})")
-
-#     dtype = os.getenv("DTYPE", "auto")
-#     serialized_dir = f"{BASE_DIR}/serialized_model"
-#     os.makedirs(serialized_dir, exist_ok=True)
-#     serialized_uri = f"{serialized_dir}/model{'-%03d' if tensorizer_num_gpus > 1 else ''}.tensors"
-    
-#     tensorize_vllm_model(
-#         EngineArgs(model=model_path, tensor_parallel_size=tensorizer_num_gpus, dtype=dtype),
-#         TensorizerConfig(tensorizer_uri=serialized_uri)
-#     )
-#     logging.info("Successfully serialized model to %s", str(serialized_uri))
-#     logging.info("Removing HF Model files after serialization")
-#     rmtree("/".join(model_path.split("/")[:-2]))
-#     return serialized_uri, tensorizer_num_gpus, dtype
 
 if __name__ == "__main__":
     setup_env()
@@ -80,15 +55,6 @@ if __name__ == "__main__":
         "MODEL_REVISION": os.getenv("MODEL_REVISION"),
         "QUANTIZATION": os.getenv("QUANTIZATION"),
     }   
-    
-    # if os.getenv("TENSORIZE") == "1": TODO: Add back once tensorizer is ready
-    #     serialized_uri, tensorizer_num_gpus, dtype = tensorize_model(model_path)
-    #     metadata.update({
-    #         "MODEL_NAME": serialized_uri,
-    #         "TENSORIZER_URI": serialized_uri,
-    #         "TENSOR_PARALLEL_SIZE": tensorizer_num_gpus,
-    #         "DTYPE": dtype
-    #     })
         
     tokenizer_path = download(tokenizer_name, tokenizer_revision, "tokenizer", cache_dir)
     metadata.update({

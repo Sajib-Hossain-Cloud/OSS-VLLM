@@ -14,7 +14,6 @@ from vllm.entrypoints.openai.serving_completion import OpenAIServingCompletion
 from vllm.entrypoints.openai.protocol import ChatCompletionRequest, CompletionRequest, ErrorResponse
 from vllm.entrypoints.openai.serving_models import BaseModelPath, LoRAModulePath, OpenAIServingModels
 
-# Try to import Responses API support (available in vLLM >= 0.12.0)
 try:
     from vllm.entrypoints.openai.serving_responses import OpenAIServingResponses
     from vllm.entrypoints.openai.protocol import ResponsesRequest
@@ -23,7 +22,6 @@ except ImportError:
     RESPONSES_API_AVAILABLE = False
     logging.warning("Responses API not available in this vLLM version. GPT-OSS Responses API will be disabled.")
 
-
 from utils import DummyRequest, JobInput, BatchSize, create_error_response
 from constants import DEFAULT_MAX_CONCURRENCY, DEFAULT_BATCH_SIZE, DEFAULT_BATCH_SIZE_GROWTH_FACTOR, DEFAULT_MIN_BATCH_SIZE
 from tokenizer import TokenizerWrapper
@@ -31,21 +29,17 @@ from engine_args import get_engine_args
 
 class vLLMEngine:
     def __init__(self, engine = None):
-        load_dotenv() # For local development
+        load_dotenv()
         self.engine_args = get_engine_args()
         logging.info(f"Engine args: {self.engine_args}")
         
-        # Initialize vLLM engine first
         self.llm = self._initialize_llm() if engine is None else engine.llm
         
-        # Only create custom tokenizer wrapper if not using mistral tokenizer mode
-        # For mistral models, let vLLM handle tokenizer initialization
         if self.engine_args.tokenizer_mode != 'mistral':
             self.tokenizer = TokenizerWrapper(self.engine_args.tokenizer or self.engine_args.model, 
                                               self.engine_args.tokenizer_revision, 
                                               self.engine_args.trust_remote_code)
         else:
-            # For mistral models, we'll get the tokenizer from vLLM later
             self.tokenizer = None
             
         self.max_concurrency = int(os.getenv("MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY))
@@ -54,12 +48,9 @@ class vLLMEngine:
         self.min_batch_size = int(os.getenv("MIN_BATCH_SIZE", DEFAULT_MIN_BATCH_SIZE))
 
     def _get_tokenizer_for_chat_template(self):
-        """Get tokenizer for chat template application"""
         if self.tokenizer is not None:
             return self.tokenizer
         else:
-            # For mistral models, get tokenizer from vLLM engine
-            # This is a fallback - ideally chat templates should be handled by vLLM directly
             try:
                 from transformers import AutoTokenizer
                 tokenizer = AutoTokenizer.from_pretrained(
@@ -67,7 +58,7 @@ class vLLMEngine:
                     revision=self.engine_args.tokenizer_revision or "main",
                     trust_remote_code=self.engine_args.trust_remote_code
                 )
-                # Create a minimal wrapper
+                
                 class MinimalTokenizerWrapper:
                     def __init__(self, tokenizer):
                         self.tokenizer = tokenizer
@@ -130,10 +121,9 @@ class vLLMEngine:
         max_batch_size = batch_size or self.default_batch_size
         batch_size_growth_factor, min_batch_size = batch_size_growth_factor or self.batch_size_growth_factor, min_batch_size or self.min_batch_size
         batch_size = BatchSize(max_batch_size, min_batch_size, batch_size_growth_factor)
-    
 
         async for request_output in results_generator:
-            if is_first_output:  # Count input tokens only once
+            if is_first_output:
                 n_input_tokens = len(request_output.prompt_token_ids)
                 is_first_output = False
 
@@ -187,7 +177,6 @@ class OpenAIvLLMEngine(vLLMEngine):
         self.response_role = os.getenv("OPENAI_RESPONSE_ROLE") or "assistant"
         self.lora_adapters = self._load_lora_adapters()
         asyncio.run(self._initialize_engines())
-        # Handle both integer and boolean string values for RAW_OPENAI_OUTPUT
         raw_output_env = os.getenv("RAW_OPENAI_OUTPUT", "1")
         if raw_output_env.lower() in ('true', 'false'):
             self.raw_openai_output = raw_output_env.lower() == 'true'
@@ -224,7 +213,6 @@ class OpenAIvLLMEngine(vLLMEngine):
         )
         await self.serving_models.init_static_loras()
         
-        # Get chat template from vLLM tokenizer if available
         chat_template = None
         if self.tokenizer and hasattr(self.tokenizer, 'tokenizer'):
             chat_template = self.tokenizer.tokenizer.chat_template
@@ -237,9 +225,7 @@ class OpenAIvLLMEngine(vLLMEngine):
             request_logger=None,
             chat_template=chat_template,
             chat_template_content_format="auto",
-            # enable_reasoning=os.getenv('ENABLE_REASONING', 'false').lower() == 'true',
-            reasoning_parser= os.getenv('REASONING_PARSER', "") or None,
-            # return_token_as_token_ids=False,
+            reasoning_parser=os.getenv('REASONING_PARSER', "") or None,
             enable_auto_tools=os.getenv('ENABLE_AUTO_TOOL_CHOICE', 'false').lower() == 'true',
             tool_parser=os.getenv('TOOL_CALL_PARSER', "") or None,
             enable_prompt_tokens_details=False
@@ -249,10 +235,8 @@ class OpenAIvLLMEngine(vLLMEngine):
             model_config=self.model_config,
             models=self.serving_models,
             request_logger=None,
-            # return_token_as_token_ids=False,
         )
         
-        # Initialize Responses API engine for GPT-OSS support (vLLM >= 0.12.0)
         self.responses_engine = None
         if RESPONSES_API_AVAILABLE:
             try:
@@ -333,7 +317,6 @@ class OpenAIvLLMEngine(vLLMEngine):
                 yield batch
     
     async def _handle_responses_request(self, openai_request: JobInput):
-        """Handle OpenAI Responses API requests (for GPT-OSS models)."""
         if not RESPONSES_API_AVAILABLE or self.responses_engine is None:
             yield create_error_response(
                 "Responses API is not available. Please ensure vLLM >= 0.12.0 is installed."
@@ -377,4 +360,3 @@ class OpenAIvLLMEngine(vLLMEngine):
                 if self.raw_openai_output:
                     batch = "".join(batch)
                 yield batch
-            

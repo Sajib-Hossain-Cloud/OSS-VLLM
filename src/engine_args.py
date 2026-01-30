@@ -39,11 +39,11 @@ DEFAULT_ARGS = {
     "enable_prefix_caching": os.getenv('ENABLE_PREFIX_CACHING', 'False').lower() == 'true',
     "disable_sliding_window": os.getenv('DISABLE_SLIDING_WINDOW', 'False').lower() == 'true',
     "use_v2_block_manager": os.getenv('USE_V2_BLOCK_MANAGER', 'False').lower() == 'true',
-    "swap_space": int(os.getenv('SWAP_SPACE', 4)),  # GiB
-    "cpu_offload_gb": int(os.getenv('CPU_OFFLOAD_GB', 0)),  # GiB
+    "swap_space": int(os.getenv('SWAP_SPACE', 4)),
+    "cpu_offload_gb": int(os.getenv('CPU_OFFLOAD_GB', 0)),
     "max_num_batched_tokens": int(os.getenv('MAX_NUM_BATCHED_TOKENS', 0)) or None,
     "max_num_seqs": int(os.getenv('MAX_NUM_SEQS', 256)),
-    "max_logprobs": int(os.getenv('MAX_LOGPROBS', 20)),  # Default value for OpenAI Chat Completions API
+    "max_logprobs": int(os.getenv('MAX_LOGPROBS', 20)),
     "revision": os.getenv('REVISION', None),
     "code_revision": os.getenv('CODE_REVISION', None),
     "rope_scaling": os.getenv('ROPE_SCALING', None),
@@ -93,36 +93,20 @@ DEFAULT_ARGS = {
     "disable_logprobs_during_spec_decoding": os.getenv('DISABLE_LOGPROBS_DURING_SPEC_DECODING', None),
     "otlp_traces_endpoint": os.getenv('OTLP_TRACES_ENDPOINT', None),
     "use_v2_block_manager": os.getenv('USE_V2_BLOCK_MANAGER', 'true'),
-    # GPT-OSS and MXFP4 specific settings
     "compilation_config": os.getenv('COMPILATION_CONFIG', None),
     "max_cudagraph_capture_size": int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', 0)) or None,
 }
+
 limit_mm_env = os.getenv('LIMIT_MM_PER_PROMPT')
 if limit_mm_env is not None:
     DEFAULT_ARGS["limit_mm_per_prompt"] = convert_limit_mm_per_prompt(limit_mm_env)
 
 def match_vllm_args(args):
-    """Rename args to match vllm by:
-    1. Renaming keys to lower case
-    2. Renaming keys to match vllm
-    3. Filtering args to match vllm's AsyncEngineArgs
-
-    Args:
-        args (dict): Dictionary of args
-
-    Returns:
-        dict: Dictionary of args with renamed keys
-    """
     renamed_args = {RENAME_ARGS_MAP.get(k, k): v for k, v in args.items()}
     matched_args = {k: v for k, v in renamed_args.items() if k in AsyncEngineArgs.__dataclass_fields__}
     return {k: v for k, v in matched_args.items() if v not in [None, "", "None"]}
-def get_local_args():
-    """
-    Retrieve local arguments from a JSON file.
 
-    Returns:
-        dict: Local arguments.
-    """
+def get_local_args():
     if not os.path.exists("/local_model_args.json"):
         return {}
 
@@ -137,29 +121,16 @@ def get_local_args():
     os.environ["HF_HUB_OFFLINE"] = "1"
 
     return local_args
+
 def get_engine_args():
-    # Start with default args
     args = DEFAULT_ARGS
-    
-    # Get env args that match keys in AsyncEngineArgs
     args.update(os.environ)
-    
-    # Get local args if model is baked in and overwrite env args
     args.update(get_local_args())
-    
-    # if args.get("TENSORIZER_URI"): TODO: add back once tensorizer is ready
-    #     args["load_format"] = "tensorizer"
-    #     args["model_loader_extra_config"] = TensorizerConfig(tensorizer_uri=args["TENSORIZER_URI"], num_readers=None)
-    #     logging.info(f"Using tensorized model from {args['TENSORIZER_URI']}")
-    
-    
-    # Rename and match to vllm args
     args = match_vllm_args(args)
 
     if args.get("load_format") == "bitsandbytes":
         args["quantization"] = args["load_format"]
     
-    # Set tensor parallel size and max parallel loading workers if more than 1 GPU is available
     num_gpus = device_count()
     if num_gpus > 1:
         args["tensor_parallel_size"] = num_gpus
@@ -167,46 +138,34 @@ def get_engine_args():
         if os.getenv("MAX_PARALLEL_LOADING_WORKERS"):
             logging.warning("Overriding MAX_PARALLEL_LOADING_WORKERS with None because more than 1 GPU is available.")
     
-    # Deprecated env args backwards compatibility
     if args.get("kv_cache_dtype") == "fp8_e5m2":
         args["kv_cache_dtype"] = "fp8"
         logging.warning("Using fp8_e5m2 is deprecated. Please use fp8 instead.")
     if os.getenv("MAX_CONTEXT_LEN_TO_CAPTURE"):
         args["max_seq_len_to_capture"] = int(os.getenv("MAX_CONTEXT_LEN_TO_CAPTURE"))
         logging.warning("Using MAX_CONTEXT_LEN_TO_CAPTURE is deprecated. Please use MAX_SEQ_LEN_TO_CAPTURE instead.")
-        
-    # if "gemma-2" in args.get("model", "").lower():
-    #     os.environ["VLLM_ATTENTION_BACKEND"] = "FLASHINFER"
-    #     logging.info("Using FLASHINFER for gemma-2 model.")
     
-    # GPT-OSS specific optimizations
     model_name = args.get("model", "").lower()
     if "gpt-oss" in model_name:
         logging.info("Detected GPT-OSS model, applying optimizations...")
         
-        # Enable async scheduling for better performance (recommended for GPT-OSS)
         if os.getenv('ASYNC_SCHEDULING', 'true').lower() == 'true':
             args["async_scheduling"] = True
             logging.info("Async scheduling enabled for GPT-OSS model.")
         
-        # Disable prefix caching for GPT-OSS (recommended)
         if os.getenv('NO_ENABLE_PREFIX_CACHING', 'true').lower() == 'true':
             args["enable_prefix_caching"] = False
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
-        # Set max_model_len if not specified (GPT-OSS default is 8192)
         if not args.get("max_model_len"):
             args["max_model_len"] = 8192
             logging.info("Setting default max_model_len to 8192 for GPT-OSS model.")
         
-        # Set max_num_batched_tokens to at least max_model_len for GPT-OSS
-        # GPT-OSS requires max_num_batched_tokens >= max_model_len
         max_model_len_val = args.get("max_model_len")
         if isinstance(max_model_len_val, str):
             max_model_len_val = int(max_model_len_val) if max_model_len_val else 8192
         max_model_len_val = max_model_len_val or 8192
         
-        # Get env var value, ensuring it's valid (> 0)
         env_batched_tokens = os.getenv('MAX_NUM_BATCHED_TOKENS', '')
         if env_batched_tokens and int(env_batched_tokens) > 0:
             target_batched_tokens = max(int(env_batched_tokens), max_model_len_val)
@@ -216,34 +175,29 @@ def get_engine_args():
         args["max_num_batched_tokens"] = target_batched_tokens
         logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
         
-        # Set max_cudagraph_capture_size for GPT-OSS (recommended: 2048)
         if not args.get("max_cudagraph_capture_size"):
             cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', 2048))
             if cudagraph_size > 0:
                 args["max_cudagraph_capture_size"] = cudagraph_size
                 logging.info(f"Setting max_cudagraph_capture_size to {cudagraph_size} for GPT-OSS model.")
         
-        # Set MXFP4 environment variables for Blackwell GPUs if not already set
         if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
-            # Auto-detect Blackwell GPU and enable MXFP4 optimizations
             try:
                 import subprocess
                 result = subprocess.run(['nvidia-smi', '-i', '0', '--query-gpu=compute_cap', '--format=csv,noheader'], 
                                        capture_output=True, text=True)
                 compute_cap = result.stdout.strip()
-                if compute_cap == "10.0":  # Blackwell
+                if compute_cap == "10.0":
                     os.environ["VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8"] = "1"
                     logging.info("Blackwell GPU detected, enabling FlashInfer MXFP4+MXFP8 MoE.")
             except Exception as e:
                 logging.debug(f"Could not detect GPU compute capability: {e}")
     
-    # Final safeguard: ensure max_num_batched_tokens is valid (>= 1) if set
     if "max_num_batched_tokens" in args:
         batched_tokens = args["max_num_batched_tokens"]
         if isinstance(batched_tokens, str):
             batched_tokens = int(batched_tokens) if batched_tokens else None
         if batched_tokens is not None and batched_tokens < 1:
-            # Remove invalid value, let vLLM use its default
             del args["max_num_batched_tokens"]
             logging.warning("Removed invalid max_num_batched_tokens value (< 1)")
         
