@@ -4,7 +4,7 @@ import logging
 from torch.cuda import device_count
 from vllm import AsyncEngineArgs
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
-from src.utils import convert_limit_mm_per_prompt
+from utils import convert_limit_mm_per_prompt
 
 RENAME_ARGS_MAP = {
     "MODEL_NAME": "model",
@@ -192,6 +192,12 @@ def get_engine_args():
                     logging.info("Blackwell GPU detected, enabling FlashInfer MXFP4+MXFP8 MoE.")
             except Exception as e:
                 logging.debug(f"Could not detect GPU compute capability: {e}")
+
+        if args.get("async_scheduling") is True:
+            backend = args.get("distributed_executor_backend")
+            if backend == "ray" or backend is None:
+                args["distributed_executor_backend"] = "mp"
+                logging.info("Async scheduling requires mp/uni/external_launcher; using mp backend.")
     
     if "max_num_batched_tokens" in args:
         batched_tokens = args["max_num_batched_tokens"]
