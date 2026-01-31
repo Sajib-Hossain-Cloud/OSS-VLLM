@@ -10,23 +10,28 @@ Run LLMs using [vLLM](https://docs.vllm.ai) with an OpenAI-compatible API
 
 ## Endpoint Configuration
 
-All behaviour is controlled through environment variable:
+All behaviour is controlled through environment variables:
 
-| Environment Variable                | Description                                       | Default             | Options                                                            |
-| ----------------------------------- | ------------------------------------------------- | ------------------- | ------------------------------------------------------------------ |
-| `MODEL_NAME`                        | Path of the model weights                         | "facebook/opt-125m" | Local folder or Hugging Face repo ID                               |
-| `HF_TOKEN`                          | HuggingFace access token for gated/private models |                     | Your HuggingFace access token                                      |
-| `MAX_MODEL_LEN`                     | Model's maximum context length                    |                     | Integer (e.g., 4096)                                               |
-| `QUANTIZATION`                      | Quantization method                               |                     | "awq", "gptq", "squeezellm", "bitsandbytes", "mxfp4"               |
-| `TENSOR_PARALLEL_SIZE`              | Number of GPUs                                    | 1                   | Integer                                                            |
-| `GPU_MEMORY_UTILIZATION`            | Fraction of GPU memory to use                     | 0.95                | Float between 0.0 and 1.0                                          |
-| `MAX_NUM_SEQS`                      | Maximum number of sequences per iteration         | 256                 | Integer                                                            |
-| `CUSTOM_CHAT_TEMPLATE`              | Custom chat template override                     |                     | Jinja2 template string                                             |
-| `ENABLE_AUTO_TOOL_CHOICE`           | Enable automatic tool selection                   | false               | boolean (true or false)                                            |
-| `TOOL_CALL_PARSER`                  | Parser for tool calls                             |                     | "mistral", "hermes", "llama3_json", "granite", "deepseek_v3", etc. |
-| `REASONING_PARSER`                  | Parser for reasoning-capable models               |                     | "deepseek_r1", "qwen3", "granite", "hunyuan_a13b"                  |
-| `OPENAI_SERVED_MODEL_NAME_OVERRIDE` | Override served model name in API                 |                     | String                                                             |
-| `MAX_CONCURRENCY`                   | Maximum concurrent requests                       | 300                 | Integer                                                            |
+| Environment Variable                | Description                                        | Default             | Options                                                             |
+| ----------------------------------- | -------------------------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| `MODEL_NAME`                        | Path of the model weights                          | | Local folder or Hugging Face repo ID                                |
+| `HF_TOKEN`                          | HuggingFace access token for gated/private models  |                     | Your HuggingFace access token                                       |
+| `MAX_MODEL_LEN`                     | Model's maximum context length                     |                     | Integer (e.g., 4096)                                                |
+| `QUANTIZATION`                      | Quantization method                                |                     | "awq", "gptq", "squeezellm", "bitsandbytes", "mxfp4"                |
+| `TENSOR_PARALLEL_SIZE`              | Number of GPUs                                     | 1                   | Integer                                                             |
+| `GPU_MEMORY_UTILIZATION`            | Fraction of GPU memory to use                      | 0.95                | Float between 0.0 and 1.0                                           |
+| `MAX_NUM_SEQS`                      | Maximum number of sequences per iteration          | 256                 | Integer                                                             |
+| `CUSTOM_CHAT_TEMPLATE`              | Custom chat template override                      |                     | Jinja2 template string                                              |
+| `ENABLE_AUTO_TOOL_CHOICE`           | Enable automatic tool selection (GPT-OSS: use true)| false               | boolean (true or false)                                             |
+| `TOOL_CALL_PARSER`                  | Parser for tool calls (GPT-OSS: use openai)        |                     | "openai", "mistral", "hermes", "llama3_json", "granite", "deepseek_v3", etc. |
+| `REASONING_PARSER`                  | Parser for reasoning-capable models               |                     | "deepseek_r1", "qwen3", "granite", "hunyuan_a13b"                    |
+| `ASYNC_SCHEDULING`                  | Async scheduling (GPT-OSS: recommended true)       |                     | boolean (true or false)                                             |
+| `NO_ENABLE_PREFIX_CACHING`         | Disable prefix caching (GPT-OSS: recommended true) |                     | boolean (true or false)                                             |
+| `KV_CACHE_DTYPE`                    | KV cache dtype (fp8 for longer context)            | auto                | "auto", "fp8"                                                       |
+| `OPENAI_SERVED_MODEL_NAME_OVERRIDE` | Override served model name in API                  |                     | String                                                              |
+| `MAX_CONCURRENCY`                   | Maximum concurrent requests                       | 300                 | Integer                                                             |
+
+For **GPT-OSS** endpoints set `MODEL_NAME` to `openai/gpt-oss-20b` (or 120b) and use the GPT-OSS-recommended values in the table above. Context length and memory are set automatically from GPU VRAM; see [Deploying GPT-OSS Models](#deploying-gpt-oss-models-gpt-oss-20b--gpt-oss-120b) for hardware tiers and full details.
 
 For complete configuration options, see the [full configuration documentation](https://github.com/Sajib-Hossain-Cloud/OSS-VLLM/blob/main/docs/configuration.md).
 
