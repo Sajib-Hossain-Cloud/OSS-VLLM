@@ -4,7 +4,7 @@ import logging
 from torch.cuda import device_count, get_device_properties
 from vllm import AsyncEngineArgs
 
-# VRAM threshold (bytes) below which we apply small-GPU defaults for GPT-OSS (e.g. 24–32 GB cards)
+
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
 from utils import convert_limit_mm_per_prompt
@@ -152,7 +152,7 @@ def get_engine_args():
     if "gpt-oss" in model_name:
         logging.info("Detected GPT-OSS model, applying optimizations...")
 
-        # Detect small GPU (e.g. 24–32 GB) to avoid OOM / worker exit code 1
+       
         small_gpu = False
         try:
             if device_count() > 0:
@@ -178,7 +178,7 @@ def get_engine_args():
             default_max_len = 4096 if small_gpu else 8192
             args["max_model_len"] = default_max_len
             logging.info(
-                "Setting default max_model_len to %s for GPT-OSS model.",
+                "Setting default max model_len to %s for GPT-OSS model.",
                 default_max_len,
             )
         if small_gpu and args.get("gpu_memory_utilization", 0.95) >= 0.94:
