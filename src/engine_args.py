@@ -1,8 +1,11 @@
 import os
 import json
 import logging
-from torch.cuda import device_count
+from torch.cuda import device_count, get_device_properties
 from vllm import AsyncEngineArgs
+
+# VRAM threshold (bytes) below which we apply small-GPU defaults for GPT-OSS (e.g. 24–32 GB cards)
+SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
 from utils import convert_limit_mm_per_prompt
 
@@ -148,7 +151,21 @@ def get_engine_args():
     model_name = args.get("model", "").lower()
     if "gpt-oss" in model_name:
         logging.info("Detected GPT-OSS model, applying optimizations...")
-        
+
+        # Detect small GPU (e.g. 24–32 GB) to avoid OOM / worker exit code 1
+        small_gpu = False
+        try:
+            if device_count() > 0:
+                total_vram = get_device_properties(0).total_memory
+                if total_vram <= SMALL_GPU_VRAM_BYTES:
+                    small_gpu = True
+                    logging.info(
+                        "Small GPU detected (%.1f GB VRAM). Using conservative defaults to avoid OOM.",
+                        total_vram / (1024 ** 3),
+                    )
+        except Exception as e:
+            logging.debug("Could not get GPU memory for small-GPU detection: %s", e)
+
         if os.getenv('ASYNC_SCHEDULING', 'true').lower() == 'true':
             args["async_scheduling"] = True
             logging.info("Async scheduling enabled for GPT-OSS model.")
@@ -158,8 +175,17 @@ def get_engine_args():
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
         if not args.get("max_model_len"):
-            args["max_model_len"] = 8192
-            logging.info("Setting default max_model_len to 8192 for GPT-OSS model.")
+            default_max_len = 4096 if small_gpu else 8192
+            args["max_model_len"] = default_max_len
+            logging.info(
+                "Setting default max_model_len to %s for GPT-OSS model.",
+                default_max_len,
+            )
+        if small_gpu and args.get("gpu_memory_utilization", 0.95) >= 0.94:
+            args["gpu_memory_utilization"] = 0.88
+            logging.info(
+                "Reducing gpu_memory_utilization to 0.88 on small GPU to leave headroom."
+            )
         
         max_model_len_val = args.get("max_model_len")
         if isinstance(max_model_len_val, str):
@@ -176,10 +202,14 @@ def get_engine_args():
         logging.info(f"From env: Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
         
         if not args.get("max_cudagraph_capture_size"):
-            cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', 2048))
+            default_cudagraph = 1024 if small_gpu else 2048
+            cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', default_cudagraph))
             if cudagraph_size > 0:
                 args["max_cudagraph_capture_size"] = cudagraph_size
-                logging.info(f"Setting max_cudagraph_capture_size to {cudagraph_size} for GPT-OSS model.")
+                logging.info(
+                    "Setting max_cudagraph_capture_size to %s for GPT-OSS model.",
+                    cudagraph_size,
+                )
         
         if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
             try:
