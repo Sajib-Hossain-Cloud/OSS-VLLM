@@ -274,17 +274,29 @@ def get_engine_args():
                     max_len,
                 )
         
-        if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
-            try:
-                import subprocess
-                result = subprocess.run(['nvidia-smi', '-i', '0', '--query-gpu=compute_cap', '--format=csv,noheader'], 
-                                       capture_output=True, text=True)
-                compute_cap = result.stdout.strip()
-                if compute_cap == "10.0":
+        try:
+            import subprocess
+            result = subprocess.run(['nvidia-smi', '-i', '0', '--query-gpu=compute_cap', '--format=csv,noheader'], 
+                                   capture_output=True, text=True)
+            compute_cap = result.stdout.strip()
+            compute_major = int(compute_cap.split('.')[0]) if compute_cap else 0
+            
+            if compute_cap == "10.0":
+                if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
                     os.environ["VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8"] = "1"
                     logging.info("Blackwell GPU detected, enabling FlashInfer MXFP4+MXFP8 MoE.")
-            except Exception as e:
-                logging.debug(f"Could not detect GPU compute capability: {e}")
+            elif compute_major < 9:
+                quant = args.get("quantization", "").lower() if args.get("quantization") else ""
+                is_fp4_model = "mxfp4" in quant or "fp4" in quant or "gpt-oss" in model_name
+                if is_fp4_model and not args.get("enforce_eager"):
+                    args["enforce_eager"] = True
+                    logging.info(
+                        "GPU compute capability %s < 9.0 with FP4/GPT-OSS model. "
+                        "Enabling enforce_eager to avoid Marlin PTX compatibility issues.",
+                        compute_cap,
+                    )
+        except Exception as e:
+            logging.debug(f"Could not detect GPU compute capability: {e}")
 
         if args.get("async_scheduling") is True:
             backend = args.get("distributed_executor_backend")
