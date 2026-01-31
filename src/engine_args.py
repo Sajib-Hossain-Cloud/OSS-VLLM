@@ -6,6 +6,8 @@ from vllm import AsyncEngineArgs
 
 
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
+VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  # RTX 4090, 3090, etc.
+TINY_GPU_VRAM_BYTES = 16 * (1024 ** 3)        # 16GB class (e.g. 4060 Ti 16GB)
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
 from utils import convert_limit_mm_per_prompt
 
@@ -154,14 +156,32 @@ def get_engine_args():
 
        
         small_gpu = False
+        very_small_gpu = False  # 16-24 GB (e.g. RTX 4090, 3090)
+        tiny_gpu = False       # ≤16 GB
         try:
             if device_count() > 0:
                 total_vram = get_device_properties(0).total_memory
-                if total_vram <= SMALL_GPU_VRAM_BYTES:
+                vram_gb = total_vram / (1024 ** 3)
+                if total_vram <= TINY_GPU_VRAM_BYTES:
+                    tiny_gpu = True
+                    very_small_gpu = True
+                    small_gpu = True
+                    logging.info(
+                        "Tiny GPU detected (%.1f GB VRAM). Using minimal defaults (max_model_len=1024, max_num_seqs=32) for 16GB class.",
+                        vram_gb,
+                    )
+                elif total_vram <= VERY_SMALL_GPU_VRAM_BYTES:
+                    very_small_gpu = True
+                    small_gpu = True
+                    logging.info(
+                        "Very small GPU detected (%.1f GB VRAM). Using conservative defaults (max_model_len=2048, max_num_seqs=64) for 16-24GB.",
+                        vram_gb,
+                    )
+                elif total_vram <= SMALL_GPU_VRAM_BYTES:
                     small_gpu = True
                     logging.info(
                         "Small GPU detected (%.1f GB VRAM). Using conservative defaults to avoid OOM.",
-                        total_vram / (1024 ** 3),
+                        vram_gb,
                     )
         except Exception as e:
             logging.debug("Could not get GPU memory for small-GPU detection: %s", e)
@@ -175,16 +195,46 @@ def get_engine_args():
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
         if not args.get("max_model_len"):
-            default_max_len = 4096 if small_gpu else 8192
+            if tiny_gpu:
+                default_max_len = 1024
+            elif very_small_gpu:
+                default_max_len = 2048
+            elif small_gpu:
+                default_max_len = 4096
+            else:
+                default_max_len = 8192
             args["max_model_len"] = default_max_len
             logging.info(
                 "Setting default max model_len to %s for GPT-OSS model.",
                 default_max_len,
             )
+        elif tiny_gpu or very_small_gpu:
+            max_len = args["max_model_len"]
+            if isinstance(max_len, str):
+                max_len = int(max_len) if max_len else (1024 if tiny_gpu else 2048)
+            cap = 1024 if tiny_gpu else 2048
+            if max_len > cap:
+                args["max_model_len"] = cap
+                logging.info(
+                    "Capping max_model_len to %s on small VRAM GPU (≤24GB) to avoid OOM.",
+                    cap,
+                )
+        if tiny_gpu and args.get("max_num_seqs", 256) > 32:
+            args["max_num_seqs"] = 32
+            logging.info("Capping max_num_seqs to 32 on tiny GPU (≤16GB VRAM).")
+        elif very_small_gpu and args.get("max_num_seqs", 256) > 64:
+            args["max_num_seqs"] = 64
+            logging.info("Capping max_num_seqs to 64 on very small GPU (16-24GB VRAM).")
         if small_gpu and args.get("gpu_memory_utilization", 0.95) >= 0.94:
-            args["gpu_memory_utilization"] = 0.88
+            if tiny_gpu:
+                args["gpu_memory_utilization"] = 0.80
+            elif very_small_gpu:
+                args["gpu_memory_utilization"] = 0.85
+            else:
+                args["gpu_memory_utilization"] = 0.88
             logging.info(
-                "Reducing gpu_memory_utilization to 0.88 on small GPU to leave headroom."
+                "Reducing gpu_memory_utilization to %s on small GPU to leave headroom.",
+                args["gpu_memory_utilization"],
             )
         
         max_model_len_val = args.get("max_model_len")
@@ -202,13 +252,26 @@ def get_engine_args():
         logging.info(f"From env: Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
         
         if not args.get("max_cudagraph_capture_size"):
-            default_cudagraph = 1024 if small_gpu else 2048
+            default_cudagraph = (
+                256 if tiny_gpu else
+                512 if very_small_gpu else
+                1024 if small_gpu else
+                2048
+            )
             cudagraph_size = int(os.getenv('MAX_CUDAGRAPH_CAPTURE_SIZE', default_cudagraph))
             if cudagraph_size > 0:
                 args["max_cudagraph_capture_size"] = cudagraph_size
                 logging.info(
                     "Setting max_cudagraph_capture_size to %s for GPT-OSS model.",
                     cudagraph_size,
+                )
+        if (tiny_gpu or very_small_gpu) and args.get("max_seq_len_to_capture"):
+            max_len = args.get("max_model_len") or (1024 if tiny_gpu else 2048)
+            if args["max_seq_len_to_capture"] > max_len:
+                args["max_seq_len_to_capture"] = max_len
+                logging.info(
+                    "Capping max_seq_len_to_capture to %s on small VRAM GPU.",
+                    max_len,
                 )
         
         if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
