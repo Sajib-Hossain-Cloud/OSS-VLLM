@@ -21,6 +21,7 @@ async def handler(job):
     async for batch in results_generator:
         yield batch
 
+
 if __name__ == '__main__':
     vllm_engine, openai_engine = get_engines()
     runpod.serverless.start(
