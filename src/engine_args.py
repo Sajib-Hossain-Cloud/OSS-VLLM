@@ -229,6 +229,19 @@ def get_engine_args():
                     "Capping max_model_len to %s on small VRAM GPU (≤24GB) to avoid OOM.",
                     cap,
                 )
+  
+        if gpu_48gb_or_more and args.get("max_model_len"):
+            max_len_val = args["max_model_len"]
+            if isinstance(max_len_val, str):
+                max_len_val = int(max_len_val) if max_len_val else 8192
+            max_len_val = max_len_val or 8192
+            if max_len_val < 32000:
+                args["max_model_len"] = 32000
+                logging.info(
+                    "48GB+ GPU: Correcting max_model_len from %s to 32000 for GPT-OSS 20B "
+                    "(avoids 'max_tokens must be at least 1' for long prompts).",
+                    max_len_val,
+                )
         if tiny_gpu and args.get("max_num_seqs", 256) > 32:
             args["max_num_seqs"] = 32
             logging.info("Capping max_num_seqs to 32 on tiny GPU (≤16GB VRAM).")
