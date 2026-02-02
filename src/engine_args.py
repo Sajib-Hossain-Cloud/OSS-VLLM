@@ -8,6 +8,7 @@ from vllm import AsyncEngineArgs
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
 VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  # RTX 4090, 3090, etc.
 TINY_GPU_VRAM_BYTES = 16 * (1024 ** 3)        # 16GB class (e.g. 4060 Ti 16GB)
+GPU_48GB_VRAM_BYTES = 48 * (1024 ** 3)        # 48GB class (e.g. A40, L40, RTX 6000 Ada)
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
 from utils import convert_limit_mm_per_prompt
 
@@ -158,10 +159,13 @@ def get_engine_args():
         small_gpu = False
         very_small_gpu = False  # 16-24 GB (e.g. RTX 4090, 3090)
         tiny_gpu = False       # ≤16 GB
+        gpu_48gb_or_more = False
         try:
             if device_count() > 0:
                 total_vram = get_device_properties(0).total_memory
                 vram_gb = total_vram / (1024 ** 3)
+                if total_vram >= GPU_48GB_VRAM_BYTES:
+                    gpu_48gb_or_more = True
                 if total_vram <= TINY_GPU_VRAM_BYTES:
                     tiny_gpu = True
                     very_small_gpu = True
@@ -201,13 +205,19 @@ def get_engine_args():
                 default_max_len = 2048
             elif small_gpu:
                 default_max_len = 4096
+            elif gpu_48gb_or_more:
+                default_max_len = 32000
+                logging.info(
+                    "48GB+ GPU detected. Setting default max_model_len to 32000 for GPT-OSS model.",
+                )
             else:
                 default_max_len = 8192
             args["max_model_len"] = default_max_len
-            logging.info(
-                "Setting default max model_len to %s for GPT-OSS model.",
-                default_max_len,
-            )
+            if not gpu_48gb_or_more:
+                logging.info(
+                    "Setting default max model_len to %s for GPT-OSS model.",
+                    default_max_len,
+                )
         elif tiny_gpu or very_small_gpu:
             max_len = args["max_model_len"]
             if isinstance(max_len, str):

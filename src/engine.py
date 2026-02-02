@@ -265,7 +265,7 @@ class OpenAIvLLMEngine(vLLMEngine):
     async def _handle_model_request(self):
         models = await self.serving_models.show_available_models()
         return models.model_dump()
-    
+
     async def _handle_chat_or_completion_request(self, openai_request: JobInput):
         if openai_request.openai_route == "/v1/chat/completions":
             request_class = ChatCompletionRequest
@@ -273,7 +273,7 @@ class OpenAIvLLMEngine(vLLMEngine):
         elif openai_request.openai_route == "/v1/completions":
             request_class = CompletionRequest
             generator_function = self.completion_engine.create_completion
-        
+
         try:
             request = request_class(
                 **openai_request.openai_input
@@ -320,7 +320,7 @@ class OpenAIvLLMEngine(vLLMEngine):
                 "Responses API is not available. Please ensure vLLM >= 0.12.0 is installed."
             ).model_dump()
             return
-        
+
         try:
             request = ResponsesRequest(**openai_request.openai_input)
         except Exception as e:
