@@ -37,7 +37,7 @@ DEFAULT_ARGS = {
     "kv_cache_dtype": os.getenv('KV_CACHE_DTYPE', 'auto'),
     "quantization_param_path": os.getenv('QUANTIZATION_PARAM_PATH', None),
     "seed": int(os.getenv('SEED', 0)),
-    "max_model_len": int(os.getenv('MAX_MODEL_LEN', 0)) or None,
+    "max_model_len": int(os.getenv('MAX_MODEL_LEN', 32000)) or None,
     "worker_use_ray": os.getenv('WORKER_USE_RAY', 'False').lower() == 'true',
     "distributed_executor_backend": os.getenv('DISTRIBUTED_EXECUTOR_BACKEND', None),
     "max_parallel_loading_workers": int(os.getenv('MAX_PARALLEL_LOADING_WORKERS', 0)) or None,
@@ -199,37 +199,12 @@ def get_engine_args():
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
         if not args.get("max_model_len"):
-            if tiny_gpu:
-                default_max_len = 32000
-            elif very_small_gpu:
-                default_max_len = 32000
-            elif small_gpu:
-                default_max_len = 32000
-            elif gpu_48gb_or_more:
-                default_max_len = 32000
-                logging.info(
-                    "48GB+ GPU detected. Setting default max_model_len to 32000 for GPT-OSS model.",
-                )
-            else:
-                default_max_len = 8192
+            default_max_len = 32000
             args["max_model_len"] = default_max_len
-            if not gpu_48gb_or_more:
-                logging.info(
-                    "Setting default max model_len to %s for GPT-OSS model.",
-                    default_max_len,
-                )
-        elif tiny_gpu or very_small_gpu:
-            max_len = args["max_model_len"]
-            if isinstance(max_len, str):
-                max_len = int(max_len) if max_len else (1024 if tiny_gpu else 2048)
-            cap = 1024 if tiny_gpu else 2048
-            if max_len > cap:
-                args["max_model_len"] = cap
-                logging.info(
-                    "Capping max_model_len to %s on small VRAM GPU (≤24GB) to avoid OOM.",
-                    cap,
-                )
-  
+            logging.info(
+                "Setting default max_model_len to %s for GPT-OSS model (all GPU sizes).",
+                default_max_len,
+            )
         if gpu_48gb_or_more and args.get("max_model_len"):
             max_len_val = args["max_model_len"]
             if isinstance(max_len_val, str):
