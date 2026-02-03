@@ -260,7 +260,7 @@ class OpenAIvLLMEngine(vLLMEngine):
             async for response in self._handle_responses_request(openai_request):
                 yield response
         else:
-            yield create_error_response("Invalid route").model_dump()
+            yield create_error_response("Invalid route for GPT-OSS 20B model.").model_dump()
     
     async def _handle_model_request(self):
         models = await self.serving_models.show_available_models()
@@ -317,7 +317,7 @@ class OpenAIvLLMEngine(vLLMEngine):
     async def _handle_responses_request(self, openai_request: JobInput):
         if not RESPONSES_API_AVAILABLE or self.responses_engine is None:
             yield create_error_response(
-                "Responses API is not available. Please ensure vLLM >= 0.12.0 is installed."
+                "Responses API is not available. Please ensure vLLM >= 0.12.0 is installed hell.."
             ).model_dump()
             return
 
