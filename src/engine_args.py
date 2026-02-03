@@ -200,11 +200,11 @@ def get_engine_args():
         
         if not args.get("max_model_len"):
             if tiny_gpu:
-                default_max_len = 1024
+                default_max_len = 32000
             elif very_small_gpu:
-                default_max_len = 2048
+                default_max_len = 32000
             elif small_gpu:
-                default_max_len = 4096
+                default_max_len = 32000
             elif gpu_48gb_or_more:
                 default_max_len = 32000
                 logging.info(
