@@ -37,7 +37,7 @@ DEFAULT_ARGS = {
     "kv_cache_dtype": os.getenv('KV_CACHE_DTYPE', 'auto'),
     "quantization_param_path": os.getenv('QUANTIZATION_PARAM_PATH', None),
     "seed": int(os.getenv('SEED', 0)),
-    "max_model_len": int(os.getenv('MAX_MODEL_LEN', 32000)) or None,
+    "max_model_len": int(os.getenv('MAX_MODEL_LEN', 16000)) or None,
     "worker_use_ray": os.getenv('WORKER_USE_RAY', 'False').lower() == 'true',
     "distributed_executor_backend": os.getenv('DISTRIBUTED_EXECUTOR_BACKEND', None),
     "max_parallel_loading_workers": int(os.getenv('MAX_PARALLEL_LOADING_WORKERS', 0)) or None,
@@ -199,7 +199,7 @@ def get_engine_args():
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
         if not args.get("max_model_len"):
-            default_max_len = 32000
+            default_max_len = 16000
             args["max_model_len"] = default_max_len
             logging.info(
                 "Setting default max_model_len to %s for GPT-OSS model (all GPU sizes).",
@@ -210,10 +210,10 @@ def get_engine_args():
             if isinstance(max_len_val, str):
                 max_len_val = int(max_len_val) if max_len_val else 8192
             max_len_val = max_len_val or 8192
-            if max_len_val < 32000:
-                args["max_model_len"] = 32000
+            if max_len_val < 16000:
+                args["max_model_len"] = 16000
                 logging.info(
-                    "48GB+ GPU: Correcting max_model_len from %s to 32000 for GPT-OSS 20B "
+                    "48GB+ GPU: Correcting max_model_len from %s to 16000 for GPT-OSS 20B "
                     "(avoids 'max_tokens must be at least 1' for long prompts).",
                     max_len_val,
                 )
