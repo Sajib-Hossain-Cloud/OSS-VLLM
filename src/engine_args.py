@@ -6,9 +6,9 @@ from vllm import AsyncEngineArgs
 
 
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
-VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  # RTX 4090, 3090, etc.
-TINY_GPU_VRAM_BYTES = 16 * (1024 ** 3)        # 16GB class (e.g. 4060 Ti 16GB)
-GPU_48GB_VRAM_BYTES = 48 * (1024 ** 3)        # 48GB class (e.g. A40, L40, RTX 6000 Ada)
+VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  
+TINY_GPU_VRAM_BYTES = 16 * (1024 ** 3)        
+GPU_48GB_VRAM_BYTES = 48 * (1024 ** 3)        
 from vllm.model_executor.model_loader.tensorizer import TensorizerConfig
 from utils import convert_limit_mm_per_prompt
 
@@ -199,10 +199,13 @@ def get_engine_args():
             logging.info("Prefix caching disabled for GPT-OSS model.")
         
         if not args.get("max_model_len"):
-            default_max_len = 16000
+            if gpu_48gb_or_more:
+                default_max_len = 32000
+            else:
+                default_max_len = 16000
             args["max_model_len"] = default_max_len
             logging.info(
-                "Setting default max_model_len to %s for GPT-OSS model (all GPU sizes).",
+                "Setting default max_model_len to %s for GPT-OSS model.",
                 default_max_len,
             )
         if gpu_48gb_or_more and args.get("max_model_len"):
@@ -213,8 +216,7 @@ def get_engine_args():
             if max_len_val < 16000:
                 args["max_model_len"] = 16000
                 logging.info(
-                    "48GB+ GPU: Correcting max_model_len from %s to 16000 for GPT-OSS 20B "
-                    "(avoids 'max_tokens must be at least 1' for long prompts).",
+                    "48GB+ GPU: Correcting max_model_len from %s to 16000 for GPT-OSS 20B.",
                     max_len_val,
                 )
         if tiny_gpu and args.get("max_num_seqs", 256) > 32:
@@ -223,6 +225,13 @@ def get_engine_args():
         elif very_small_gpu and args.get("max_num_seqs", 256) > 64:
             args["max_num_seqs"] = 64
             logging.info("Capping max_num_seqs to 64 on very small GPU (16-24GB VRAM).")
+        elif gpu_48gb_or_more and not args.get("max_num_seqs"):
+            args["max_num_seqs"] = 256
+            logging.info("Setting max_num_seqs to 256 on 48GB+ GPU for optimal throughput.")
+        elif not small_gpu and not very_small_gpu and not tiny_gpu and not gpu_48gb_or_more and not args.get("max_num_seqs"):
+            args["max_num_seqs"] = 128
+            logging.info("Setting max_num_seqs to 128 on 40GB GPU for optimal throughput.")
+        
         if small_gpu and args.get("gpu_memory_utilization", 0.95) >= 0.94:
             if tiny_gpu:
                 args["gpu_memory_utilization"] = 0.80
@@ -234,6 +243,12 @@ def get_engine_args():
                 "Reducing gpu_memory_utilization to %s on small GPU to leave headroom.",
                 args["gpu_memory_utilization"],
             )
+        elif gpu_48gb_or_more and not os.getenv('GPU_MEMORY_UTILIZATION'):
+            args["gpu_memory_utilization"] = 0.92
+            logging.info("Setting gpu_memory_utilization to 0.92 on 48GB+ GPU for optimal performance.")
+        elif not small_gpu and not very_small_gpu and not tiny_gpu and not gpu_48gb_or_more and not os.getenv('GPU_MEMORY_UTILIZATION'):
+            args["gpu_memory_utilization"] = 0.90
+            logging.info("Setting gpu_memory_utilization to 0.90 on 40GB GPU for optimal performance.")
         
         max_model_len_val = args.get("max_model_len")
         if isinstance(max_model_len_val, str):
@@ -244,10 +259,15 @@ def get_engine_args():
         if env_batched_tokens and int(env_batched_tokens) > 0:
             target_batched_tokens = max(int(env_batched_tokens), max_model_len_val)
         else:
-            target_batched_tokens = max_model_len_val
+            if gpu_48gb_or_more:
+                target_batched_tokens = max(max_model_len_val * 2, 32000)
+            elif not small_gpu and not very_small_gpu and not tiny_gpu:
+                target_batched_tokens = max(int(max_model_len_val * 1.5), 24000)
+            else:
+                target_batched_tokens = max_model_len_val
         
         args["max_num_batched_tokens"] = target_batched_tokens
-        logging.info(f"From env: Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
+        logging.info(f"Setting max_num_batched_tokens to {args['max_num_batched_tokens']} for GPT-OSS model (max_model_len={max_model_len_val}).")
         
         if not args.get("max_cudagraph_capture_size"):
             default_cudagraph = (
@@ -278,21 +298,30 @@ def get_engine_args():
                                    capture_output=True, text=True)
             compute_cap = result.stdout.strip()
             compute_major = int(compute_cap.split('.')[0]) if compute_cap else 0
+            compute_minor = int(compute_cap.split('.')[1]) if '.' in compute_cap and compute_cap.split('.')[1] else 0
             
             if compute_cap == "10.0":
                 if os.getenv('VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8') is None:
                     os.environ["VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8"] = "1"
                     logging.info("Blackwell GPU detected, enabling FlashInfer MXFP4+MXFP8 MoE.")
-            elif compute_major < 9:
+            elif compute_major < 8 or (compute_major == 8 and compute_minor < 0):
                 quant = args.get("quantization", "").lower() if args.get("quantization") else ""
                 is_fp4_model = "mxfp4" in quant or "fp4" in quant or "gpt-oss" in model_name
-                if is_fp4_model and not args.get("enforce_eager"):
+                user_override = os.getenv('ENFORCE_EAGER', '').lower()
+                if is_fp4_model and user_override != 'false' and not args.get("enforce_eager"):
                     args["enforce_eager"] = True
                     logging.info(
-                        "GPU compute capability %s < 9.0 with FP4/GPT-OSS model. "
-                        "Enabling enforce_eager to avoid Marlin PTX compatibility issues.",
+                        "GPU compute capability %s < 8.0 with FP4/GPT-OSS model. Enabling enforce_eager.",
                         compute_cap,
                     )
+            elif compute_major == 8 and compute_minor >= 0:
+                user_override = os.getenv('ENFORCE_EAGER', '').lower()
+                if user_override == 'true':
+                    args["enforce_eager"] = True
+                    logging.info("User enabled enforce_eager on Ampere/Ada GPU (compute capability %s).", compute_cap)
+                elif user_override != 'false':
+                    args["enforce_eager"] = False
+                    logging.info("Allowing CUDA graphs on Ampere/Ada GPU (compute capability %s) for optimal performance.", compute_cap)
         except Exception as e:
             logging.debug(f"Could not detect GPU compute capability: {e}")
 
