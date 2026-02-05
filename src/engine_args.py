@@ -153,7 +153,7 @@ def get_engine_args():
     
     model_name = args.get("model", "").lower()
     if "gpt-oss" in model_name:
-        logging.info("Detected GPT-OSS model, applying optimizations...")
+        logging.info("Detected GPT-OSS model, applying optimizations......")
 
        
         small_gpu = False
