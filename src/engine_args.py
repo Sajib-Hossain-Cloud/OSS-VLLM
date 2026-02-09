@@ -1,9 +1,9 @@
 import os
 import json
 import logging
+import torch
 from torch.cuda import device_count, get_device_properties
 from vllm import AsyncEngineArgs
-
 
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
 VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  
