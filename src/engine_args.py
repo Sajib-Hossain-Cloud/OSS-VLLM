@@ -5,6 +5,8 @@ import torch
 from torch.cuda import device_count, get_device_properties
 from vllm import AsyncEngineArgs
 
+
+
 SMALL_GPU_VRAM_BYTES = 40 * (1024 ** 3)
 VERY_SMALL_GPU_VRAM_BYTES = 24 * (1024 ** 3)  
 TINY_GPU_VRAM_BYTES = 16 * (1024 ** 3)        
@@ -138,6 +140,10 @@ def get_engine_args():
         args["quantization"] = args["load_format"]
     
     num_gpus = device_count()
+    if num_gpus > 0:
+        if args.get("device") == "auto" or not args.get("device"):
+            args["device"] = "cuda"
+            logging.info("CUDA available: Setting device to 'cuda'.")
     if num_gpus > 1:
         args["tensor_parallel_size"] = num_gpus
         args["max_parallel_loading_workers"] = None
@@ -330,6 +336,12 @@ def get_engine_args():
             if backend == "ray" or backend is None:
                 args["distributed_executor_backend"] = "mp"
                 logging.info("Async scheduling requires mp/uni/external_launcher; using mp backend.")
+    
+    backend = args.get("distributed_executor_backend")
+    if backend == "mp" and device_count() > 0:
+        if args.get("device") == "auto" or not args.get("device"):
+            args["device"] = "cuda"
+            logging.info("Setting device to 'cuda' for multiprocessing executor backend.")
     
     if "max_num_batched_tokens" in args:
         batched_tokens = args["max_num_batched_tokens"]
