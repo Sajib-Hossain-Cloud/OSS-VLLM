@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04 
 
 RUN apt-get update -y \
     && apt-get install -y python3-pip git
