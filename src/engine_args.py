@@ -350,5 +350,8 @@ def get_engine_args():
         if batched_tokens is not None and batched_tokens < 1:
             del args["max_num_batched_tokens"]
             logging.warning("Removed invalid max_num_batched_tokens value (< 1)")
+    
+    if "device" in args:
+        del args["device"]
         
     return AsyncEngineArgs(**args)
