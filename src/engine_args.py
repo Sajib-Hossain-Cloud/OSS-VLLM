@@ -379,7 +379,7 @@ def get_engine_args():
                 else:
                     compilation_config_dict = {}
             except (json.JSONDecodeError, TypeError) as e:
-                logging.warning(f"Failed to parse COMPILATION_CONFIG: {e}")
+                logging.warning(f"Failed to parse COMPILATION_CONFIG fallback to empty dictionary: {e}")
                 compilation_config_dict = {}
         
         if compilation_config_dict.get("cudagraph_mode") is None:
