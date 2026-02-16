@@ -354,5 +354,50 @@ def get_engine_args():
     
     if "device" in args:
         del args["device"]
+    
+    max_cudagraph_size = args.get("max_cudagraph_capture_size")
+    try:
+        cudagraph_size_valid = False
+        if max_cudagraph_size:
+            if isinstance(max_cudagraph_size, int):
+                cudagraph_size_valid = max_cudagraph_size > 0
+            elif isinstance(max_cudagraph_size, str):
+                cudagraph_size_valid = int(max_cudagraph_size) > 0
+    except (ValueError, TypeError):
+        cudagraph_size_valid = False
+    
+    if cudagraph_size_valid:
+        compilation_config_str = args.get("compilation_config")
+        compilation_config_dict = {}
+        
+        if compilation_config_str:
+            try:
+                if isinstance(compilation_config_str, str):
+                    compilation_config_dict = json.loads(compilation_config_str)
+                elif isinstance(compilation_config_str, dict):
+                    compilation_config_dict = compilation_config_str.copy()
+                else:
+                    compilation_config_dict = {}
+            except (json.JSONDecodeError, TypeError) as e:
+                logging.warning(f"Failed to parse COMPILATION_CONFIG: {e}")
+                compilation_config_dict = {}
+        
+        if compilation_config_dict.get("cudagraph_mode") is None:
+            compilation_config_dict["cudagraph_mode"] = "FULL_AND_PIECEWISE"
+            logging.info("Set cudagraph_mode to FULL_AND_PIECEWISE in compilation_config")
+        
+        if compilation_config_dict.get("max_cudagraph_capture_size") is None:
+            cudagraph_size_val = max_cudagraph_size
+            if isinstance(cudagraph_size_val, str):
+                cudagraph_size_val = int(cudagraph_size_val)
+            compilation_config_dict["max_cudagraph_capture_size"] = cudagraph_size_val
+            logging.info("Set max_cudagraph_capture_size to %s in compilation_config", cudagraph_size_val)
+        
+        if isinstance(compilation_config_str, str) or compilation_config_str is None:
+            args["compilation_config"] = json.dumps(compilation_config_dict)
+            logging.info("Updated compilation_config JSON: %s", args["compilation_config"])
+        else:
+            args["compilation_config"] = compilation_config_dict
+            logging.info("Updated compilation_config dict: %s", compilation_config_dict)
         
     return AsyncEngineArgs(**args)
