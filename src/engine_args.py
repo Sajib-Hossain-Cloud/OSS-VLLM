@@ -395,6 +395,11 @@ def get_engine_args():
             compilation_config_dict["max_cudagraph_capture_size"] = cudagraph_size_val
             logging.info("Set max_cudagraph_capture_size to %s in compilation_config", cudagraph_size_val)
     
+    if compilation_config_dict and compilation_config_dict.get("max_cudagraph_capture_size") is not None:
+        if "max_cudagraph_capture_size" in args:
+            del args["max_cudagraph_capture_size"]
+            logging.info("Removed max_cudagraph_capture_size from top-level args to avoid conflict with compilation_config")
+    
     args["compilation_config"] = compilation_config_dict
     
     return AsyncEngineArgs(**args)
